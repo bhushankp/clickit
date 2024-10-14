@@ -11,7 +11,6 @@ import (
 
 var DB *gorm.DB
 
-// ConnectDatabase initializes the MySQL connection
 func ConnectDatabase() {
 	dsn := os.Getenv("MYSQL_DSN")
 	database, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
@@ -20,6 +19,5 @@ func ConnectDatabase() {
 	}
 	DB = database
 
-	// Migrate the schema
 	DB.AutoMigrate(&models.Record{})
 }

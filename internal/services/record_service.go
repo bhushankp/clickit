@@ -9,12 +9,9 @@ import (
 	"time"
 )
 
-// ProcessExcelRows handles Excel row processing and inserts records into MySQL
 func ProcessExcelRows(rows [][]string) {
 	var records []models.Record
-	// Loop through each row in the Excel data
 	for _, row := range rows {
-		// Create a new Record instance from the row data
 		record := models.Record{
 			FirstName: row[0],
 			LastName:  row[1],
@@ -27,49 +24,42 @@ func ProcessExcelRows(rows [][]string) {
 			Email:     row[8],
 			Web:       row[9],
 		}
-		records = append(records, record) // Append the record to the slice
+		records = append(records, record)
 	}
 
-	// Batch insert into MySQL
 	if err := config.DB.Create(&records).Error; err != nil {
-		log.Printf("Error inserting records into MySQL: %v", err) // Log any error during insertion
+		log.Printf("Error inserting records into MySQL: %v", err)
 		return
 	}
 
-	// Cache the records in Redis
 	for _, record := range records {
 		cacheRecord(record)
 	}
 }
 
-// cacheRecord stores a single record in Redis with a defined expiration time
 func cacheRecord(record models.Record) {
-	data, err := json.Marshal(record) // Convert the record to JSON
+	data, err := json.Marshal(record)
 	if err != nil {
-		log.Printf("Error marshaling record to JSON: %v", err) // Log any JSON marshaling errors
+		log.Printf("Error marshaling record to JSON: %v", err)
 		return
 	}
-	cacheKey := "record:" + strconv.Itoa(int(record.ID))      // Generate the cache key
-	config.RDB.Set(config.Ctx, cacheKey, data, 5*time.Minute) // Set the record in Redis with a 5-minute expiration
+	cacheKey := "record:" + strconv.Itoa(int(record.ID))
+	config.RDB.Set(config.Ctx, cacheKey, data, 5*time.Minute)
 }
 
-// FetchPaginatedRecords retrieves paginated records from MySQL
 func FetchPaginatedRecords(page, perPage int) ([]models.Record, error) {
 	var records []models.Record
-	offset := (page - 1) * perPage                                      // Calculate the offset for pagination
-	err := config.DB.Limit(perPage).Offset(offset).Find(&records).Error // Fetch the records with limit and offset
-	return records, err                                                 // Return the records and any error encountered
+	offset := (page - 1) * perPage
+	err := config.DB.Limit(perPage).Offset(offset).Find(&records).Error
+	return records, err
 }
 
-// UpdateRecord updates a record in both MySQL and Redis
 func UpdateRecord(id int, updatedRecord models.Record) error {
 	var record models.Record
-	// Find the existing record by ID
 	if err := config.DB.First(&record, id).Error; err != nil {
-		return err // Return error if the record is not found
+		return err
 	}
 
-	// Update the record fields with the new values
 	record.FirstName = updatedRecord.FirstName
 	record.LastName = updatedRecord.LastName
 	record.Company = updatedRecord.Company
@@ -81,30 +71,24 @@ func UpdateRecord(id int, updatedRecord models.Record) error {
 	record.Email = updatedRecord.Email
 	record.Web = updatedRecord.Web
 
-	// Save the updated record back to MySQL
 	if err := config.DB.Save(&record).Error; err != nil {
-		return err // Return error if saving fails
+		return err
 	}
 
-	// Cache the updated record in Redis
 	cacheRecord(record)
-	return nil // Return nil if update is successful
+	return nil
 }
 
-// DeleteRecord deletes a record from MySQL and Redis
 func DeleteRecord(id int) error {
 	var record models.Record
-	// Find the existing record by ID
 	if err := config.DB.First(&record, id).Error; err != nil {
-		return err // Return error if the record is not found
+		return err
 	}
 
-	// Delete the record from MySQL
 	if err := config.DB.Delete(&record).Error; err != nil {
-		return err // Return error if deleting fails
+		return err
 	}
 
-	// Remove the record from Redis
 	config.RDB.Del(config.Ctx, "record:"+strconv.Itoa(id))
-	return nil // Return nil if deletion is successful
+	return nil
 }

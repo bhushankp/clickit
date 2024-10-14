@@ -11,12 +11,11 @@ import (
 var RDB *redis.Client
 var Ctx = context.Background()
 
-// ConnectRedis initializes the Redis client
 func ConnectRedis() {
 	RDB = redis.NewClient(&redis.Options{
 		Addr:     os.Getenv("REDIS_ADDR"),
-		Password: "", // no password set
-		DB:       0,  // use default DB
+		Password: "",
+		DB:       0,
 	})
 
 	_, err := RDB.Ping(Ctx).Result()
